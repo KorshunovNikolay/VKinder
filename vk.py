@@ -67,7 +67,7 @@ class VKBot:
             age = current_date.year - birthday_date.year - birthday_not_passed
             return age
 
-    def top_vk_photos(self, user_id, album='profile', count=1):
+    def top_vk_photos(self, user_id, album='wall', count=3):
         # Получаем топ-3 фото (макс размер)
         top_photo_list = []
         vk_url = f"{self.base}photos.get?"
@@ -79,9 +79,7 @@ class VKBot:
         response = requests.get(vk_url, params={**self.params, **params})
         try:
             all_photos = response.json()['response']['items']
-            print(all_photos)
             sorted_photos = sorted(all_photos, key=lambda x: x['likes']['count'], reverse=True)[0:int(count)]
-            print(sorted_photos)
             for current_photo in sorted_photos:
                 max_size_photo = max(current_photo['sizes'], key=lambda x: x['height'])
                 photo_data = {'url': max_size_photo['url']}
