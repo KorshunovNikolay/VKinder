@@ -1,4 +1,5 @@
 import os
+
 import requests
 import datetime
 
@@ -11,14 +12,13 @@ GROUP_TOKEN = os.getenv('GROUP_TOKEN')
 
 class VKBot:
 
-    def __init__(self, user_id, access_token=ACCESS_TOKEN,  version='5.199'):
+    def __init__(self, user_id, access_token=ACCESS_TOKEN,  version='5.89'):
         self.token = access_token
-        self.id = user_id
         self.version = version
         self.params = {'access_token': self.token, 'v':self.version}
         self.base = 'https://api.vk.com/method/'
 
-
+        self.id = user_id
         self.first_name = ''
         self.last_name = ''
         self.birthday = None
@@ -66,7 +66,7 @@ class VKBot:
             age = current_date.year - birthday_date.year - birthday_not_passed
             return age
 
-    def top_vk_photos(self, user_id, album='wall', count=3):
+    def top_vk_photos(self, user_id, album='profile', photo_count=3):
         # Получаем топ-3 фото (макс размер)
         top_photo_list = []
         vk_url = f"{self.base}photos.get?"
@@ -78,7 +78,7 @@ class VKBot:
         response = requests.get(vk_url, params={**self.params, **params})
         try:
             all_photos = response.json()['response']['items']
-            sorted_photos = sorted(all_photos, key=lambda x: x['likes']['count'], reverse=True)[0:int(count)]
+            sorted_photos = sorted(all_photos, key=lambda x: x['likes']['count'], reverse=True)[0:int(photo_count)]
             for current_photo in sorted_photos:
                 max_size_photo = max(current_photo['sizes'], key=lambda x: x['height'])
                 photo_data = {'url': max_size_photo['url']}
@@ -88,28 +88,27 @@ class VKBot:
 
         return top_photo_list
 
-    def candidates_search(self, count=30):
+    def candidates_search(self, count=100):
         # поиск кандидатов
         vk_url = f"{self.base}users.search"
+        fields = "is_closed, can_access_closed"
         params = {
             'count': count,
             'city': self.city,
             'sex': self.select_sex[self.sex],
             'has_photo': 1,
-            'is_closed': 0,
-            'can_access_closed': 1,
             'age_from': 18,
-            'age_to': 50
+            'age_to': 50,
+            'fields': fields
         }
         response = requests.get(vk_url, params={**self.params, **params})
         candidates = response.json()['response']['items']
-        del_key_list = ['can_access_closed', 'is_closed', 'track_code']
         for candidate in candidates:
-            for key in del_key_list:
-                del candidate[key]
-            candidate['top_photo'] = self.top_vk_photos(candidate['id'])
-            candidate['profile'] = f"https://vk.com/id{candidate['id']}"
-        self.candidates_list = candidates
+            if not candidate['is_closed'] == True or candidate['can_access_closed'] == True:
+                candidate['top_photo'] = self.top_vk_photos(candidate['id'])
+                candidate['profile'] = f"https://vk.com/id{candidate['id']}"
+                if candidate['top_photo']:
+                    self.candidates_list.append(candidate)
         return self.candidates_list
 
 
@@ -121,7 +120,7 @@ class VKBot:
 
 
 if __name__ == '__main__':
-    vkbot = VKBot('') # для теста ввести ID пользователя на VK
+    vkbot = VKBot('205714728') # для теста ввести ID пользователя на VK
     print(vkbot)
     vkbot.get_user_info()
     pprint(vkbot.candidates_search())
