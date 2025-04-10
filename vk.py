@@ -1,4 +1,3 @@
-import json
 import os
 import requests
 import datetime
@@ -89,7 +88,7 @@ class VKBot:
 
         return top_photo_list
 
-    def candidates_search(self, count=10):
+    def candidates_search(self, count=30):
         # поиск кандидатов
         vk_url = f"{self.base}users.search"
         params = {
@@ -122,9 +121,8 @@ class VKBot:
 
 
 if __name__ == '__main__':
-    vkbot = VKBot('259534979') # для теста ввести ID пользователя на VK
-    # print(vkbot)
+    vkbot = VKBot('') # для теста ввести ID пользователя на VK
+    print(vkbot)
     vkbot.get_user_info()
     pprint(vkbot.candidates_search())
-    print(vkbot.age)
 
