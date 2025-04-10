@@ -90,7 +90,8 @@ class VkBotDatabase:
                     session.refresh(candidate)
                     logging.info(f"candidate {vk_id=} added")
                 except Exception as e:
-                    logging.error(f"couldn't add candidate {vk_id=} ({e.__class__.__name__})")
+                    logging.error(f"couldn't add candidate {vk_id=} ({e.__class__.__name__}) \n"
+                                  f"{first_name=}, {last_name=}, {link=}")
 
     def add_photo(self, vk_id, link):
         photo = Photo(
@@ -116,10 +117,10 @@ class VkBotDatabase:
                     logging.info(f"reaction updated with {mark=} for {user_id=}, {candidate_id=}")
         else:
             new_reaction = Reaction(
-                    user_id=user_id,
-                    candidate_id=candidate_id,
-                    mark=mark
-                )
+                user_id=user_id,
+                candidate_id=candidate_id,
+                mark=mark
+            )
             with self.Session() as session:
                 try:
                     with session.begin():
@@ -128,7 +129,7 @@ class VkBotDatabase:
                     logging.info(f"reaction '{bool(mark)}' added for {user_id=}, {candidate_id=}")
                 except Exception as e:
                     logging.error(f"couldn't add reaction {mark=} for user "
-                          f"{user_id=}, {candidate_id=} ({e.__class__.__name__})")
+                                  f"{user_id=}, {candidate_id=} ({e.__class__.__name__})")
 
     def reaction_exists(self, user_id, candidate_id):
         with self.Session() as session:
@@ -159,23 +160,27 @@ if __name__ == '__main__':
 
     vk_db.recreate_tables()
 
-    vk_db.add_user(vk_id="u1")
-    vk_db.add_user(vk_id="u2")
-    vk_db.add_user(vk_id="u2")
-    vk_db.add_candidate(vk_id="c1")
-    vk_db.add_candidate(vk_id="c2")
-    vk_db.add_candidate(vk_id="c2")
-    vk_db.add_candidate(vk_id="c3", first_name="xs", link="c3_link")
+    # vk_db.add_user(vk_id="u1")
+    # vk_db.add_user(vk_id="u2")
+    # vk_db.add_user(vk_id="u2")
+    # vk_db.add_candidate(vk_id="c1")
+    # vk_db.add_candidate(vk_id="c2")
+    # vk_db.add_candidate(vk_id="c2")
+    # vk_db.add_candidate(vk_id="c3", first_name="xs", link="c3_link")
+    #
+    # vk_db.add_photo(vk_id="c1", link="link_photo1")
+    # vk_db.add_photo(vk_id="c1", link="link_photo2")
+    # vk_db.add_photo(vk_id="c2", link="link_photo3")
+    # vk_db.add_photo(vk_id="c2", link="link_photo3")
+    #
+    # vk_db.add_reaction("u1", "c1", 1)
+    # vk_db.add_reaction("u1", "c2", 1)
+    # vk_db.add_reaction("u1", "c2", 0)
 
-    vk_db.add_photo(vk_id="c1", link="link_photo1")
-    vk_db.add_photo(vk_id="c1", link="link_photo2")
-    vk_db.add_photo(vk_id="c2", link="link_photo3")
-    vk_db.add_photo(vk_id="c2", link="link_photo3")
-
-    vk_db.add_reaction("u1", "c1", 1)
-    vk_db.add_reaction("u1", "c2", 1)
-    vk_db.add_reaction("u1", "c2", 0)
-
-    vk_db.find_reaction("u1", "c1")
-    vk_db.find_reaction("u1", "c2")
-    vk_db.find_reaction("u1", "c3")
+    # vk_db.find_reaction("u1", "c1")
+    # vk_db.find_reaction("u1", "c2")
+    # vk_db.find_reaction("u1", "c3")
+    #
+    # print(vk_db.find_reaction("u1", "c1"))
+    # print(vk_db.find_reaction("u1", "c1").mark)
+    # print(vk_db.find_reaction("u1", "c1").candidate_id)
