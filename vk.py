@@ -50,9 +50,6 @@ class VKBot:
         except Exception as e:
             f"Ошибка {e} дата рождения не указана"
         self.sex = user_info['sex']
-
-        print(user_info)
-
         return response.json()['response'][0]
 
     def get_user_age(self):
@@ -120,8 +117,7 @@ class VKBot:
 
 
 if __name__ == '__main__':
-    vkbot = VKBot('205714728') # для теста ввести ID пользователя на VK
-    print(vkbot)
-    vkbot.get_user_info()
+    vkbot = VKBot('') # для теста ввести ID пользователя на VK
+    pprint(vkbot.get_user_info())
     pprint(vkbot.candidates_search())
 
