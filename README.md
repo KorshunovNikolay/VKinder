@@ -8,4 +8,19 @@ v2, upd. 8 апр
   - существующий пользователь или кандидат не добавится повторно, а в лог записывается сообщение уровня debug о попытке повторной записи
   - при попытке добавить новую реакцию для существующей пары пользователь-кандидат будет обновлена уже существующая запись, при этом в лог добавляется сообщение уровня info
 
+v3, upd. 11 апр
+
+- изменены форматы лога для файла database.py
+    - Если хотите уменьшить подробность логов, в файле database.py ставьте: 
+      - logging_level = logging.INFO или logging_level = logging.WARNING
+- для поиска случайного кандидата с текущей реакцией None использовать функцию **vk_db.get_random_none_candidate(user_id=...)**
+- для вывода всех избранных кандидатов использовать **vk_db.get_candidates_with_mark(user_id=..., mark=True)**
+- для вывода всех фото кандидата использовать **vk_db.get_photos(candidate_id=...)**
+
+Пример обращения к деталям найденной записи (пользователя, кандидата, фото и тп):
+```python
+random_candidate = vk_db.get_random_none_candidate(user_id="u1")
+print(random_candidate.vk_id, random_candidate.link)
+```
+---
 ![database scheme](database_scheme.png)
