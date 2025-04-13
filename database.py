@@ -230,5 +230,4 @@ class VkBotDatabase:
 
 if __name__ == '__main__':
     vk_db = VkBotDatabase()
-
     # vk_db.recreate_tables()
