@@ -117,7 +117,7 @@ class VKBot:
 
 
 if __name__ == '__main__':
-    vkbot = VKBot('') # для теста ввести ID пользователя на VK
+    vkbot = VKBot('205714728') # для теста ввести ID пользователя на VK
     pprint(vkbot.get_user_info())
     pprint(vkbot.candidates_search())
 
