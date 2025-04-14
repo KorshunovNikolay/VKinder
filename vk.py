@@ -1,8 +1,6 @@
 import os
-
 import requests
 import datetime
-
 from pprint import pprint
 from dotenv import load_dotenv
 
@@ -23,10 +21,11 @@ class VKBot:
         self.last_name = ''
         self.birthday = None
         self.city = None
-        self.sex = 0
-        self.select_sex = {0: 0, 1: 2, 2: 1}
         self.age = None
+        self.sex = 0
         self.candidates_list = []
+        self.age_from = 18
+        self.age_to = 99
 
     def get_user_info(self):
         # Получаем информацию о пользователе
@@ -45,22 +44,23 @@ class VKBot:
         except Exception as e:
             f"Ошибка {e} город не указан"
         try:
-            self.birthday = user_info['bdate']
-            self.age = self.get_user_age()
+            self.age = self.get_user_age(user_info['bdate'])
         except Exception as e:
             f"Ошибка {e} дата рождения не указана"
         self.sex = user_info['sex']
         return response.json()['response'][0]
 
-    def get_user_age(self):
+    def get_user_age(self, birthday, deviation=5):
         # Вычисляем возраст пользователя
         current_date = datetime.datetime.now()
-        birthday_date = datetime.datetime.strptime(self.birthday.replace('.', '-'), "%d-%m-%Y")
+        birthday_date = datetime.datetime.strptime(birthday.replace('.', '-'), "%d-%m-%Y")
         if not birthday_date.year:
             return None
         else:
             birthday_not_passed = (current_date.month, current_date.day) < (birthday_date.month, birthday_date.day)
             age = current_date.year - birthday_date.year - birthday_not_passed
+            self.age_from = 18 if age - deviation < 18 else age - deviation
+            self.age_to = 99 if age + deviation > 99 else age + deviation
             return age
 
     def top_vk_photos(self, user_id, album='profile', photo_count=3):
@@ -82,22 +82,24 @@ class VKBot:
                 top_photo_list.append(photo_data)
         except Exception as e:
             f"Ошибка {e} фото отсутствует"
-
         return top_photo_list
 
-    def candidates_search(self, count=100):
+    def candidates_search(self, count=100, offset=0):
         # поиск кандидатов
+        select_sex = {1: 2, 2: 1}
         vk_url = f"{self.base}users.search"
         fields = "is_closed, can_access_closed"
         params = {
+            'offset': offset,
             'count': count,
-            'city': self.city,
-            'sex': self.select_sex[self.sex],
+            'sex': select_sex[self.sex],
             'has_photo': 1,
-            'age_from': 18,
-            'age_to': 50,
+            'age_from': self.age_from,
+            'age_to': self.age_to,
             'fields': fields
         }
+        if self.city:
+            params['city'] = self.city
         response = requests.get(vk_url, params={**self.params, **params})
         candidates = response.json()['response']['items']
         for candidate in candidates:
@@ -108,7 +110,6 @@ class VKBot:
                     self.candidates_list.append(candidate)
         return self.candidates_list
 
-
     def __str__(self):
         return (
             f"Имя: {self.first_name}\n"
@@ -117,7 +118,7 @@ class VKBot:
 
 
 if __name__ == '__main__':
-    vkbot = VKBot('205714728') # для теста ввести ID пользователя на VK
+    vkbot = VKBot('') # для теста ввести ID пользователя на VK
     pprint(vkbot.get_user_info())
     pprint(vkbot.candidates_search())
 
