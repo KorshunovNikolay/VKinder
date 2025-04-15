@@ -230,4 +230,5 @@ class VkBotDatabase:
 
 if __name__ == '__main__':
     vk_db = VkBotDatabase()
+    print(vk_db.get_random_none_candidate('259534979'))
     # vk_db.recreate_tables()

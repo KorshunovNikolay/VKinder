@@ -5,8 +5,16 @@ keyboard = {
       {
         "action":{
           "type":"text",
+          "payload":"{\"button\": \"2\"}",
+          "label":"&#10084;"
+        },
+        "color":"positive"
+      },
+      {
+        "action":{
+          "type":"text",
           "payload":"{\"button\": \"1\"}",
-          "label":"To Ignore"
+          "label":"&#128078;"
         },
         "color":"negative"
       },
@@ -14,15 +22,7 @@ keyboard = {
         "action":{
           "type":"text",
           "payload":"{\"button\": \"2\"}",
-          "label":"Add Favorite"
-        },
-        "color":"positive"
-      },
-      {
-        "action":{
-          "type":"text",
-          "payload":"{\"button\": \"2\"}",
-          "label":"Favorites"
+          "label":"&#11088;"
         },
         "color":"primary"
       },
