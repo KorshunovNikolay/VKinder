@@ -1,5 +1,5 @@
-keyboard = {
-  "one_time": False,
+kb_choice = {
+  "one_time": True,
   "buttons":[
     [
       {
@@ -37,7 +37,8 @@ keyboard = {
     ]
   ]
 }
-keyboard_start = {
+
+kb_start = {
   "one_time": True,
   "buttons":[
     [
@@ -45,9 +46,25 @@ keyboard_start = {
         "action":{
           "type":"text",
           "payload":"{\"button\": \"1\"}",
-          "label": "Start"
+          "label": "START"
         },
         "color":"primary"
+      }
+    ]
+  ]
+}
+
+kb_continue = {
+  "one_time": True,
+  "buttons":[
+    [
+      {
+        "action":{
+          "type":"text",
+          "payload":"{\"button\": \"1\"}",
+          "label": "CONTINUE"
+        },
+        "color":"positive"
       }
     ]
   ]

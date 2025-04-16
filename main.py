@@ -1,122 +1,158 @@
 import json
 import requests
 import vk_api
-import threading
 import logging
-
+from threading import Thread
 from vk_api.longpoll import VkLongPoll, VkEventType
 from random import randrange
 
 from database import VkBotDatabase
-from keyboards import keyboard, keyboard_start
-from vk import VKBot, GROUP_TOKEN
+from keyboards import kb_choice, kb_start, kb_continue
+from vk import VkBotApi, GROUP_TOKEN
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG,
-                    filename="vk_bot.log", filemode="a",
+logging_level = logging.DEBUG
+logging.basicConfig(level=logging_level,
+                    filename="db_log.log", filemode="w",
                     format='%(asctime)s - %(levelname)s – %(message)s', datefmt='%Y-%m-%d %H:%M:%S',
                     encoding='utf-8')
 
-vk = vk_api.VkApi(token=GROUP_TOKEN)
+class VkBotServer:
 
-upload = vk_api.VkUpload(vk)
-longpoll = VkLongPoll(vk)
-vk_bots = {}
-vk_db = VkBotDatabase()
-vk_db.recreate_tables()
-candidate_id = ''
+    def __init__(self, group_token):
+        self.vk = vk_api.VkApi(token=group_token)
+        self.vk_db = VkBotDatabase()
+        self.event = None
+        self.user_id = None
+        self.current_bot = None
 
-def write_msg(user_id, message, keyboard=None):
-    values = {
-        'user_id': user_id,
-        'message': message,
-        'random_id': randrange(10 ** 7)
-    }
-    if keyboard:
-        values['keyboard']=json.dumps(keyboard)
-    vk.method('messages.send', values)
+    def start(self):
+        for event in VkLongPoll(self.vk).listen():
+            self.event = event
+            if self.event.type == VkEventType.MESSAGE_NEW and self.event.to_me:
+                self.user_id = str(self.event.user_id)
+                if self.event.to_me:
+                    request = self.event.text.lower()
+                    logging.info(f"User id{self.event.user_id}: {request}")
 
-def send_photo(user_id, photo_urls, message=''):
-    attachments = []
-    for photo in photo_urls:
-        image = requests.get(photo, stream=True)
-        upload_img = upload.photo_messages(photos=image.raw)[0]
-        attachment=f"photo{upload_img['owner_id']}_{upload_img['id']}"
-        attachments.append(attachment)
-    try:
-        logger.debug(f"send {len(photo_urls)} photos")
-        values = {
-            'peer_id':user_id,
-            'message':message,
-            'attachment': ','.join(attachments),
-            'random_id': randrange(10 ** 7),
-            'keyboard': json.dumps(keyboard)
-        }
-        vk.method('messages.send', values=values)
-    except Exception as e:
-        logger.error(f'{e}')
+                    if request == "start":
+                        if not self.vk_db.user_exists(self.user_id):
+                            self.current_bot = VkBotApi(self.user_id)
+                            self.current_bot.get_user_info()
+                            self.vk_db.add_user(self.user_id)
+                            self._threading_adding_candidate()
+                        self._write_msg(f"База собрана.\n"
+                                        f"Для перехода к списку кандидатов нажмите CONTINUE", kb_continue)
 
-def add_candidates_to_bd(bot, db):
-    bot.candidates_search()
-    for candidate in bot.candidates_list:
-        candidate_id_str = str(candidate['id'])
-        if not db.candidate_exists(candidate_id_str):
-            params = {
-                'vk_id': candidate_id_str,
-                'first_name': candidate['first_name'],
-                'last_name': candidate['last_name'],
-                'link': candidate['profile']
+                    elif request == "next" or request == "continue":
+                        candidate_id, candidate_first_name, candidate_last_name = self._get_random_none_candidate()
+
+                    elif request == "❤":
+                        self.vk_db.add_reaction(self.user_id, candidate_id, True)
+                        msg = f"{candidate_first_name} {candidate_last_name} добавлен(a) в Избранное -> ⭐"
+                        self._write_msg(msg)
+                        candidate_id, candidate_first_name, candidate_last_name = self._get_random_none_candidate()
+
+                    elif request == "👎":
+                        self.vk_db.add_reaction(self.user_id, candidate_id, False)
+                        msg = f"{candidate_first_name} {candidate_last_name} добавлен(a) в Чёрный список"
+                        self._write_msg(msg)
+                        candidate_id, candidate_first_name, candidate_last_name = self._get_random_none_candidate()
+
+                    elif request == "⭐":
+                        favorites = self.vk_db.get_candidates_with_mark(user_id=self.user_id, mark=True)
+                        if favorites:
+                            favorites_list = ""
+                            for favorite in favorites:
+                                favorites_list += (f"{favorite.first_name.upper()} {favorite.last_name.upper()},"
+                                                   f" https://vk.com/id{favorite.vk_id}\n")
+                            self._write_msg(f"Избранное:\n{favorites_list}", kb_continue)
+                        else:
+                            self._write_msg(f"Список пуст", kb_start)
+
+                    else:
+                        self._write_msg("Нажмите START для начала работы", kb_start)
+
+
+    def _threading_adding_candidate(self):
+        t = Thread(target=self._add_candidates_to_bd)
+        t.start()
+        self._write_msg("Подождите, собираем базу для вас 💙\n"
+                        "Для получения более точных результатов, "
+                        "пожалуйста, заполните свой возраст и "
+                        "город в профиле ВК")
+        t.join()
+
+    def _send_photo(self, photo_urls, message=''):
+        upload = vk_api.VkUpload(self.vk)
+        attachments = []
+        for photo_url in photo_urls:
+            image = requests.get(photo_url, stream=True)
+            upload_img = upload.photo_messages(photos=image.raw)[0]
+            attachment=f"photo{upload_img['owner_id']}_{upload_img['id']}"
+            attachments.append(attachment)
+        try:
+            values = {
+                'peer_id':self.user_id,
+                'message':message,
+                'attachment': ','.join(attachments),
+                'random_id': randrange(10 ** 7),
+                'keyboard': json.dumps(kb_choice)
             }
-            db.add_candidate(**params)
-            db.add_reaction(user_id_str, candidate_id_str)
-            if candidate['top_photo']:
-                for photo in candidate['top_photo']:
-                    db.add_photo(candidate_id_str, photo['url'])
+            self.vk.method('messages.send', values=values) 
+        except Exception as e:
+            print(f'{e}')
+
+    def _get_random_none_candidate(self):
+        candidate = self.vk_db.get_random_none_candidate(self.user_id)
+        id = candidate.vk_id
+        first_name = candidate.first_name
+        last_name = candidate.last_name
+        link = candidate.link
+        photo_urls = [url.link for url in self.vk_db.get_photos(id)]
+        message = f'{first_name} {last_name}\n{link}'
+        try:
+            self._send_photo(photo_urls, message=message)
+        except Exception as e:
+            logging.warning(f"Не получилось скачать фото. Ошибка: {e}")
+            self._write_msg(message, kb_continue)
+        return id, first_name, last_name
 
 
-for event in longpoll.listen():
-    if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-        user_id_str = str(event.user_id)
+    def _write_msg(self, message, keyboard=None):
+        values = {
+            'user_id': self.user_id,
+            'message': message,
+            'random_id': randrange(10 ** 7)
+        }
+        if keyboard:
+            values['keyboard']=json.dumps(keyboard)
+        self.vk.method('messages.send', values)
+
+    def _add_candidates_to_bd(self):
+        self.current_bot.candidates_search()
+        for candidate in self.current_bot.candidates_list:
+            candidate_id = str(candidate['id'])
+            if not self.vk_db.candidate_exists(candidate_id):
+                params = {
+                    'vk_id': candidate_id,
+                    'first_name': candidate['first_name'],
+                    'last_name': candidate['last_name'],
+                    'link': candidate['profile']
+                }
+                self.vk_db.add_candidate(**params)
+                self.vk_db.add_reaction(self.user_id, candidate_id)
+                if candidate['top_photo']:
+                    for photo in candidate['top_photo']:
+                        self.vk_db.add_photo(candidate_id, photo['url'])
+
+    def recreate_tables(self):
+        self.vk_db.recreate_tables()
 
 
-        print()
-        if event.to_me:
-            request = event.text.lower()
-            logger.info(f'Сообщение от {event.user_id}: {request}')
+if __name__ == '__main__':
+    bot = VkBotServer(GROUP_TOKEN)
+    bot.recreate_tables()
+    bot.start()
 
-            if request == "привет":
-                write_msg(event.user_id, f"Привет", keyboard_start)
-            elif request == "пока":
-                write_msg(event.user_id, "Пока((")
-            elif request == "start" or request == "next":
-                if not vk_db.user_exists(user_id_str):
-                    current_bot = VKBot(event.user_id)
-                    vk_bots[event.user_id] = current_bot
-                    current_bot.get_user_info()
-                    vk_db.add_user(user_id_str)
-                    t = threading.Thread(target=add_candidates_to_bd, args=(current_bot, vk_db))
-                    t.start()
-                    write_msg(event.user_id, "Подождите, идёт создание списка кандидатов")
-                    t.join()
-                candidate = vk_db.get_random_none_candidate(user_id_str)
-                candidate_id = candidate.vk_id
-                photo_urls = [url.link for url in vk_db.get_photos(candidate.vk_id)]
-                message = f'{candidate.first_name} {candidate.last_name}\n{candidate.link}'
-                send_photo(event.user_id, photo_urls, message=message)
-            elif request == "add favorite":
-                vk_db.add_reaction(user_id_str, candidate_id, True)
-                write_msg(event.user_id, f"Кандидат добавлен в Избранное, нажмите Next", keyboard)
-            elif request == "to ignore":
-                vk_db.add_reaction(user_id_str, candidate_id, False)
-                write_msg(event.user_id, f"Кандидат добавлен в Чёрный список, нажмите Next", keyboard)
-            elif request == "favorites":
-                favorites = vk_db.get_candidates_with_mark(user_id=user_id_str, mark=True)
-                if favorites:
-                    favorites_list = ""
-                    for favorite in favorites:
-                        favorites_list += f"{favorite.first_name} {favorite.last_name}, https://vk.com/id{favorite.vk_id}\n"
-                    write_msg(event.user_id, f"Избранное:\n{favorites_list}", keyboard_start)
-                else:
-                    write_msg(event.user_id, f"Список пуст", keyboard_start)
-            else:
-                write_msg(event.user_id, "Нажмите Start для начала работы", keyboard_start)
+
+

@@ -8,7 +8,7 @@ load_dotenv()
 ACCESS_TOKEN = os.getenv('ACCESS_TOKEN')
 GROUP_TOKEN = os.getenv('GROUP_TOKEN')
 
-class VKBot:
+class VkBotApi:
 
     def __init__(self, user_id, access_token=ACCESS_TOKEN,  version='5.89'):
         self.token = access_token
@@ -26,8 +26,9 @@ class VKBot:
         self.candidates_list = []
         self.age_from = 18
         self.age_to = 99
+        self.offset = 0
 
-    def get_user_info(self):
+    def get_user_info(self) -> dict:
         # Получаем информацию о пользователе
         url = f"{self.base}users.get"
         fields = '''bdate,
@@ -50,7 +51,7 @@ class VKBot:
         self.sex = user_info['sex']
         return response.json()['response'][0]
 
-    def get_user_age(self, birthday, deviation=5):
+    def get_user_age(self, birthday: str, deviation=5) -> int:
         # Вычисляем возраст пользователя
         current_date = datetime.datetime.now()
         birthday_date = datetime.datetime.strptime(birthday.replace('.', '-'), "%d-%m-%Y")
@@ -63,7 +64,7 @@ class VKBot:
             self.age_to = 99 if age + deviation > 99 else age + deviation
             return age
 
-    def top_vk_photos(self, user_id, album='profile', photo_count=3):
+    def top_vk_photos(self, user_id: int, album='profile', photo_count=3) -> list:
         # Получаем топ-3 фото (макс размер)
         top_photo_list = []
         vk_url = f"{self.base}photos.get?"
@@ -84,13 +85,13 @@ class VKBot:
             f"Ошибка {e} фото отсутствует"
         return top_photo_list
 
-    def candidates_search(self, count=100, offset=0):
+    def candidates_search(self, count=1000) -> list:
         # поиск кандидатов
         select_sex = {1: 2, 2: 1}
         vk_url = f"{self.base}users.search"
         fields = "is_closed, can_access_closed"
         params = {
-            'offset': offset,
+            'offset': self.offset,
             'count': count,
             'sex': select_sex[self.sex],
             'has_photo': 1,
@@ -108,6 +109,7 @@ class VKBot:
                 candidate['profile'] = f"https://vk.com/id{candidate['id']}"
                 if candidate['top_photo']:
                     self.candidates_list.append(candidate)
+        self.offset += count
         return self.candidates_list
 
     def __str__(self):
@@ -118,8 +120,8 @@ class VKBot:
 
 
 if __name__ == '__main__':
-    print(ACCESS_TOKEN)
-    vkbot = VKBot('259534979') # для теста ввести ID пользователя на VK
+    vkbot = VkBotApi('') # для теста ввести ID пользователя на VK
     pprint(vkbot.get_user_info())
     pprint(vkbot.candidates_search())
+
 
