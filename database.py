@@ -43,6 +43,7 @@ class VkBotDatabase:
         logging.info(f"tables for {self.db_name} recreated")
 
     def user_exists(self, vk_id):
+        """Check if certain user exists in DB by their vk_id."""
         with self.Session() as session:
             with session.begin():
                 user = session.query(User).where(User.vk_id == vk_id).first()
@@ -54,6 +55,7 @@ class VkBotDatabase:
                     return False
 
     def add_user(self, vk_id):
+        """Add new user with info (user's vk_id)."""
         if self.user_exists(vk_id):
             logging.warning(f"user {vk_id=} already exists")
         else:
@@ -68,6 +70,7 @@ class VkBotDatabase:
                     logging.error(f"couldn't add: user {vk_id=} ({e.__class__.__name__})")
 
     def candidate_exists(self, vk_id):
+        """Check if certain candidate exists in DB by their vk_id."""
         with self.Session() as session:
             with session.begin():
                 candidate = session.query(Candidate).where(Candidate.vk_id == vk_id).first()
@@ -79,6 +82,7 @@ class VkBotDatabase:
                     return False
 
     def add_candidate(self, vk_id, first_name=None, last_name=None, link=None):
+        """Add new candidate with info (candidate's vk_id, first_name, last_name, link)."""
         if self.candidate_exists(vk_id):
             logging.warning(f"candidate {vk_id=} already exists")
         else:
@@ -99,6 +103,7 @@ class VkBotDatabase:
                                   f"{first_name=}, {last_name=}, {link=}")
 
     def add_photo(self, vk_id, link):
+        """Add new photo with info (candidate's vk_id, photo's link)."""
         photo = Photo(
             candidate_id=vk_id,
             link=link
@@ -113,6 +118,7 @@ class VkBotDatabase:
                 logging.error(f"couldn't add: photo for {vk_id=} ({e.__class__.__name__})")
 
     def add_reaction(self, user_id, candidate_id, mark=None):
+        """Add or update reaction with mark for certain user and candidate."""
         if self.reaction_exists(user_id, candidate_id):
             with self.Session() as session:
                 with session.begin():
@@ -137,6 +143,7 @@ class VkBotDatabase:
                                   f"{user_id=}, {candidate_id=} ({e.__class__.__name__})")
 
     def reaction_exists(self, user_id, candidate_id):
+        """Check if certain reaction exists by user's and candidate's vk_id."""
         with self.Session() as session:
             with session.begin():
                 reaction = session.query(Reaction).where(Reaction.user_id == user_id,
@@ -149,6 +156,7 @@ class VkBotDatabase:
                     return False
 
     def get_reaction(self, user_id, candidate_id):
+        """Get reaction (record) by user's and candidate's vk_id."""
         with self.Session() as session:
             with session.begin():
                 reaction = session.query(Reaction).where(Reaction.user_id == user_id,
@@ -162,6 +170,7 @@ class VkBotDatabase:
                     return None
 
     def get_photos(self, candidate_id):
+        """Get all photos (records) for certain candidate's by their vk_id."""
         with self.Session() as session:
             with session.begin():
                 photos = session.query(Photo).where(Photo.candidate_id == candidate_id).all()
@@ -173,6 +182,7 @@ class VkBotDatabase:
                 return photos
 
     def get_all_candidates(self, user_id):
+        """Get all candidates for certain user by user's vk_id."""
         with (self.Session() as session):
             with session.begin():
                 candidates = session.query(Candidate).select_from(Candidate).join(Reaction) \
@@ -182,6 +192,7 @@ class VkBotDatabase:
                 return candidates
 
     def count_candidates_with_mark(self, user_id, mark=None):
+        """Count all candidates having certain mark from certain user by mark and user's vk_id."""
         with (self.Session() as session):
             with session.begin():
                 amount = session.query(Candidate).select_from(Candidate).join(Reaction) \
@@ -190,6 +201,7 @@ class VkBotDatabase:
                 return amount
 
     def get_candidates_with_mark(self, user_id, mark=None):
+        """Get all candidates (records) having certain mark from certain user by mark and user's vk_id."""
         if self.count_candidates_with_mark(user_id, mark):
             with (self.Session() as session):
                 with session.begin():
@@ -202,6 +214,7 @@ class VkBotDatabase:
             logging.warning(f"not found: any candidate with {mark=} for {user_id=}")
 
     def get_random_none_candidate(self, user_id):
+        """Get random candidate (record) having mark=None from certain user by user's vk_id."""
         if self.count_candidates_with_mark(user_id):
             with self.Session() as session:
                 with session.begin():
@@ -230,5 +243,4 @@ class VkBotDatabase:
 
 if __name__ == '__main__':
     vk_db = VkBotDatabase()
-    print(vk_db.get_random_none_candidate('259534979'))
     # vk_db.recreate_tables()
